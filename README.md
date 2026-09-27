@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Movies Hub
 
-## Getting Started
+Next.js + TypeScript + Tailwind rebuild of [ashish-lgtm/movies-hub](https://github.com/ashish-lgtm/movies-hub), with Supabase auth and personal library features.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Trending, discover movies/series, search
+- Content modal with cast + trailer
+- Google sign-in + profile onboarding (name, DOB/age, optional phone)
+- Watchlist and mark-as-watched
+- Profile page for to-watch and watched lists
+
+## Setup
+
+### 1. Environment
+
+Copy `.env.example` to `.env.local` and fill in:
+
+```env
+NEXT_PUBLIC_TMDB_API_KEY=your_tmdb_key
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_publishable_key
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Use the **project root URL** only (no `/rest/v1/`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Database
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+In the Supabase SQL Editor, run these in order:
 
-## Learn More
+1. `supabase/schema.sql` (watchlist / watched)
+2. `supabase/profiles.sql` (name, DOB, phone)
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Auth: Google
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Open Auth Providers → **Google** → enable
+2. Create an OAuth **Web** client in Google Cloud Console
+3. Authorized JavaScript origin: `http://localhost:3000`
+4. Authorized redirect URI: Supabase callback  
+   (`https://<project-ref>.supabase.co/auth/v1/callback`)
+5. Paste Client ID + Client Secret into Supabase and save
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 4. Auth URLs
 
-## Deploy on Vercel
+- Site URL: `http://localhost:3000`
+- Redirect URLs: `http://localhost:3000/auth/callback`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 5. Run
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm install
+npm run dev
+```
+
+## Usage
+
+1. Sign in with Google
+2. Complete profile (name, date of birth → age, optional phone)
+3. Save titles to watchlist / watched
+4. Open the single Profile icon for your details and lists
