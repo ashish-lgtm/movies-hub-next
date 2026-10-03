@@ -4,12 +4,17 @@ import { useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { img_500, unavailable, unavailableLandscape } from "@/config/config";
-import type { ContentItem } from "@/types/tmdb";
+import type { ContentItem, WatchAvailability } from "@/types/tmdb";
 import Carousel from "@/components/Carousel";
 import LibraryActions from "@/components/LibraryActions";
 import TrailerPlayer from "@/components/TrailerPlayer";
+import WatchProviders from "@/components/WatchProviders";
 import { getContentTitle, getContentYear } from "@/lib/format";
-import { fetchContentDetails, fetchTrailerKey } from "@/lib/tmdb";
+import {
+    fetchContentDetails,
+    fetchTrailerKey,
+    fetchWatchProviders,
+} from "@/lib/tmdb";
 
 type ContentModalProps = {
     children: ReactNode;
@@ -26,6 +31,8 @@ export default function ContentModal({
     const [open, setOpen] = useState(false);
     const [content, setContent] = useState<ContentItem | null>(null);
     const [video, setVideo] = useState<string | undefined>();
+    const [watchProviders, setWatchProviders] =
+        useState<WatchAvailability | null>(null);
     const [loading, setLoading] = useState(false);
 
     /** Opens the detail modal. */
@@ -38,6 +45,7 @@ export default function ContentModal({
         setOpen(false);
         setVideo(undefined);
         setContent(null);
+        setWatchProviders(null);
     }
 
     useEffect(() => {
@@ -47,14 +55,15 @@ export default function ContentModal({
 
         let cancelled = false;
 
-        /** Loads detail and trailer data when the modal opens. */
+        /** Loads detail, trailer, and watch-provider data when the modal opens. */
         async function loadDetails() {
             setLoading(true);
 
             try {
-                const [detail, trailerKey] = await Promise.all([
+                const [detail, trailerKey, providers] = await Promise.all([
                     fetchContentDetails(media_type, id),
                     fetchTrailerKey(media_type, id),
+                    fetchWatchProviders(media_type, id),
                 ]);
 
                 if (cancelled) {
@@ -63,6 +72,7 @@ export default function ContentModal({
 
                 setContent(detail);
                 setVideo(trailerKey);
+                setWatchProviders(providers);
             } finally {
                 if (!cancelled) {
                     setLoading(false);
@@ -201,6 +211,13 @@ export default function ContentModal({
                                         {video && (
                                             <TrailerPlayer
                                                 videoKey={video}
+                                                title={title}
+                                            />
+                                        )}
+
+                                        {watchProviders && (
+                                            <WatchProviders
+                                                availability={watchProviders}
                                                 title={title}
                                             />
                                         )}

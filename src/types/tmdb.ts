@@ -36,3 +36,27 @@ export interface VideoResult {
     official?: boolean;
     published_at?: string;
 }
+
+export interface WatchProvider {
+    logo_path: string | null;
+    provider_id: number;
+    provider_name: string;
+    display_priority?: number;
+}
+
+export interface WatchProviderGroup {
+    link?: string;
+    flatrate?: WatchProvider[];
+    rent?: WatchProvider[];
+    buy?: WatchProvider[];
+}
+
+export type WatchProvidersByRegion = Record<string, WatchProviderGroup>;
+
+export interface WatchAvailability {
+    region: string;
+    link?: string;
+    stream: WatchProvider[];
+    rent: WatchProvider[];
+    buy: WatchProvider[];
+}

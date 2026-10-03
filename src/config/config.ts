@@ -16,3 +16,9 @@ export const noPicture =
 
 export const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY ?? "";
 export const TMDB_BASE = "https://api.themoviedb.org/3";
+
+/** ISO country code for TMDB watch-provider lookups (e.g. IN, US). */
+export const WATCH_REGION =
+    process.env.NEXT_PUBLIC_WATCH_REGION?.toUpperCase() || "IN";
+
+export const img_logo = "https://image.tmdb.org/t/p/w92";

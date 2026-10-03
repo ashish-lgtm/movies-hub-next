@@ -1,6 +1,14 @@
 import axios from "axios";
-import { API_KEY, TMDB_BASE } from "@/config/config";
-import type { CastMember, ContentItem, Genre, VideoResult } from "@/types/tmdb";
+import { API_KEY, TMDB_BASE, WATCH_REGION } from "@/config/config";
+import type {
+    CastMember,
+    ContentItem,
+    Genre,
+    VideoResult,
+    WatchAvailability,
+    WatchProvider,
+    WatchProvidersByRegion,
+} from "@/types/tmdb";
 
 export type PagedResult = {
     results: ContentItem[];
@@ -42,7 +50,7 @@ export async function fetchSeries(
 
 /** Fetches popular Japanese animation (anime) TV shows. */
 export async function fetchAnime(page: number): Promise<PagedResult> {
-    // Genre 16 = Animation; ja = Japanese — TMDB's usual anime filter
+    // Genre 16 = Animation; ja = Japanese - TMDB's usual anime filter
     const { data } = await axios.get<PagedResult>(
         `${TMDB_BASE}/discover/tv?api_key=${API_KEY}&language=en-US&sort_by=popularity.desc&include_adult=false&page=${page}&with_genres=16&with_original_language=ja`
     );
@@ -211,7 +219,7 @@ export async function searchAnime(
     return paginateItems(collected.filter(isAnimeItem), page);
 }
 
-/** Searches upcoming titles — only results releasing after today. */
+/** Searches upcoming titles - only results releasing after today. */
 export async function searchUpcoming(
     query: string,
     page: number
@@ -523,6 +531,107 @@ export async function fetchCredits(
     );
 
     return data.cast;
+}
+
+/** Provider ids for ad-supported tiers we hide (keep the main subscription). */
+const HIDDEN_PROVIDER_IDS = new Set([
+    2100, // Amazon Prime Video with Ads
+]);
+
+/** Drops ad-tier duplicates, then sorts by TMDB display priority. */
+function sortProviders(providers: WatchProvider[] = []): WatchProvider[] {
+    return providers
+        .filter(
+            (provider) =>
+                !HIDDEN_PROVIDER_IDS.has(provider.provider_id) &&
+                !/with\s*ads/i.test(provider.provider_name)
+        )
+        .sort((a, b) => {
+            const priority =
+                (a.display_priority ?? 999) - (b.display_priority ?? 999);
+            if (priority !== 0) {
+                return priority;
+            }
+            return a.provider_name.localeCompare(b.provider_name);
+        });
+}
+
+/** True when a region has at least one stream/rent/buy option. */
+function hasWatchOptions(group?: {
+    flatrate?: WatchProvider[];
+    rent?: WatchProvider[];
+    buy?: WatchProvider[];
+}): boolean {
+    return Boolean(
+        group &&
+            ((group.flatrate?.length ?? 0) > 0 ||
+                (group.rent?.length ?? 0) > 0 ||
+                (group.buy?.length ?? 0) > 0)
+    );
+}
+
+/**
+ * Fetches where a title can be streamed, rented, or bought.
+ * Prefers WATCH_REGION, then falls back to any region with data.
+ */
+export async function fetchWatchProviders(
+    mediaType: string,
+    id: number,
+    region: string = WATCH_REGION
+): Promise<WatchAvailability | null> {
+    try {
+        const { data } = await axios.get<{ results: WatchProvidersByRegion }>(
+            `${TMDB_BASE}/${mediaType}/${id}/watch/providers?api_key=${API_KEY}`
+        );
+
+        const preferred = data.results[region];
+        if (hasWatchOptions(preferred)) {
+            return {
+                region,
+                link: preferred.link,
+                stream: sortProviders(preferred.flatrate),
+                rent: sortProviders(preferred.rent),
+                buy: sortProviders(preferred.buy),
+            };
+        }
+
+        // Prefer nearby English/popular markets if the configured region is empty.
+        const fallbackOrder = ["IN", "US", "GB", "CA", "AU"];
+        for (const code of fallbackOrder) {
+            if (code === region) {
+                continue;
+            }
+            const group = data.results[code];
+            if (hasWatchOptions(group)) {
+                return {
+                    region: code,
+                    link: group.link,
+                    stream: sortProviders(group.flatrate),
+                    rent: sortProviders(group.rent),
+                    buy: sortProviders(group.buy),
+                };
+            }
+        }
+
+        const first = Object.entries(data.results).find(([, group]) =>
+            hasWatchOptions(group)
+        );
+
+        if (!first) {
+            return null;
+        }
+
+        const [code, group] = first;
+        return {
+            region: code,
+            link: group.link,
+            stream: sortProviders(group.flatrate),
+            rent: sortProviders(group.rent),
+            buy: sortProviders(group.buy),
+        };
+    } catch {
+        return null;
+    }
 }
 
 const MAX_RECOMMENDATION_SEEDS = 12;
